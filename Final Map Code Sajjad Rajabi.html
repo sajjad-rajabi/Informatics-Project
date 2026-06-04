@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Population Heatmap & Intelligence Dashboard</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+            background-color: #f4f7f9; 
+            color: #2d3748;
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            padding: 30px 20px; 
+            margin: 0;
+            min-height: 100vh;
+        }
+        
+        .card { 
+            background: #ffffff; 
+            padding: 32px; 
+            border-radius: 24px; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.06); 
+            text-align: center; 
+            max-width: 1000px; 
+            width: 100%;
+            position: relative;
+            box-sizing: border-box;
+            border: 1px solid #e2e8f0;
+        }
+
+        h1 { 
+            margin-top: 0; 
+            margin-bottom: 8px; 
+            color: #1a202c; 
+            font-weight: 800; 
+            font-size: 2.2rem; 
+            letter-spacing: -0.5px;
+        }
+
+        .subtitle { 
+            color: #718096; 
+            margin-bottom: 24px; 
+            font-size: 1rem; 
+            font-weight: 400;
+        }
+        
+        /* Legend Styles */
+        .legend-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            background: #f8fafc;
+            padding: 12px 20px;
+            border-radius: 50px;
+            border: 1px solid #e2e8f0;
+            display: inline-flex;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: #4a5568;
+            font-weight: 600;
+        }
+
+        .legend-color {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .map-container { 
+            position: relative; 
+            width: 100%; 
+            background: #0f2038; /* Dark navy blue ocean/sea water */
+            border-radius: 16px; 
+            overflow: hidden; 
+            box-shadow: inset 0 4px 12px rgba(0,0,0,0.3); 
+        }
+
+        svg { 
+            display: block;
+            width: 100%;
+            height: auto;
+            cursor: grab; 
+        }
+        svg:active { cursor: grabbing; }
+
+        .country {
+            stroke: #000000; /* Black borders */
+            stroke-width: 1px; /* Thicker borders */
+            cursor: pointer; 
+            transition: all 0.25s ease;
+        }
+        
+        .country:hover { 
+            stroke: #ffffff; /* White on hover so it pops against the black */
+            stroke-width: 2px; 
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.4));
+            z-index: 5; 
+        } 
+
+        #reset-btn {
+            position: absolute; 
+            top: 20px; 
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9); 
+            color: #2b6cb0;
+            border: 2px solid #2b6cb0; 
+            padding: 8px 18px; 
+            border-radius: 8px;
+            cursor: pointer; 
+            font-weight: 600; 
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            font-family: inherit;
+        }
+
+        #reset-btn:hover { 
+            background: #2b6cb0; 
+            color: #ffffff; 
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(43, 108, 176, 0.2); 
+        }
+
+        #tooltip {
+            position: absolute; 
+            opacity: 0; 
+            background-color: rgba(255, 255, 255, 0.98);
+            color: #2d3748; 
+            padding: 12px 16px; 
+            border-radius: 8px;
+            pointer-events: none; 
+            font-size: 0.9rem; 
+            transition: opacity 0.15s ease;
+            border: 1px solid #e2e8f0; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            z-index: 100;
+            line-height: 1.5;
+            font-weight: 500;
+        }
+
+        #info-box {
+            margin-top: 30px; 
+            padding: 24px; 
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            color: #2d3748; 
+            border-radius: 16px; 
+            font-size: 1.05rem;
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            gap: 30px; 
+            min-height: 100px; 
+            border-left: 6px solid #e53e3e;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.04);
+            border-top: 1px solid #edf2f7;
+            border-right: 1px solid #edf2f7;
+            border-bottom: 1px solid #edf2f7;
+            box-sizing: border-box;
+        }
+
+        .flag-img { 
+            max-width: 120px; 
+            height: auto;
+            border-radius: 8px; 
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+            border: 1px solid #edf2f7;
+        }
+
+        .info-text { text-align: left; flex-grow: 1; }
+        .info-title { font-size: 1.5rem; color: #1a202c; margin-bottom: 10px; display: inline-block; }
+        .highlight { color: #e53e3e; font-weight: 700; }
+        .divider { color: #cbd5e0; margin: 0 12px; }
+        
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h1>Global Population Heatmap</h1>
+        <div class="subtitle">Hover to check densities. Click any country to extract deep regional intelligence.</div>
+        
+        <div class="legend-container" id="map-legend"></div>
+
+        <div class="map-container">
+            <svg id="my_dataviz" viewBox="0 0 800 450" preserveAspectRatio="xMidYMid meet"></svg>
+            <button id="reset-btn">Reset View</button>
+        </div>
+        
+        <div id="info-box">Awaiting global territory selection...</div>
+    </div>
+    <div id="tooltip"></div>
+
+    <script>
+        const nameCorrections = {
+            "England": "United Kingdom",
+            "United Kingdom": "United Kingdom",
+            "USA": "United States",
+            "United States of America": "United States",
+            "South Korea": "South Korea",
+            "North Korea": "North Korea",
+            "Republic of the Congo": "Republic of the Congo",
+            "Democratic Republic of the Congo": "DR Congo",
+            "DR Congo": "Democratic Republic of the Congo",
+            "Russia": "Russia",
+            "Ivory Coast": "Côte d'Ivoire",
+            "Syria": "Syrian Arab Republic",
+            "Iran": "Iran",
+            "Laos": "Lao People's Democratic Republic"
+        };
+
+        const svg = d3.select("svg");
+        const width = 800;
+        const height = 450;
+        const g = svg.append("g");
+
+        // NaturalEarth1 Projection for a spherical, professional look
+        const projection = d3.geoNaturalEarth1()
+            .scale(150)
+            .center([0, 0])
+            .translate([width / 2, height / 2 + 10]);
+            
+        const path = d3.geoPath().projection(projection);
+        
+        const zoom = d3.zoom()
+            .scaleExtent([1, 8])
+            .on("zoom", (event) => g.attr("transform", event.transform));
+            
+        svg.call(zoom);
+
+        document.getElementById("reset-btn").addEventListener("click", () => {
+            svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity); 
+        });
+
+        const tooltip = d3.select("#tooltip");
+        const infoBox = document.getElementById("info-box");
+
+        const thresholds = [1000000, 10000000, 50000000, 100000000, 500000000, 1000000000];
+        
+        // Warm color palette
+        const colorRange = ["#ffeda0", "#fed976", "#feb24c", "#fd8d3c", "#fc4e2a", "#e31a1c", "#800026"];
+        
+        const colorScale = d3.scaleThreshold()
+            .domain(thresholds)
+            .range(colorRange);
+
+        const legendContainer = d3.select("#map-legend");
+        const labels = ["< 1M", "1M - 10M", "10M - 50M", "50M - 100M", "100M - 500M", "500M - 1B", "> 1B"];
+        
+        labels.forEach((label, i) => {
+            const item = legendContainer.append("div").attr("class", "legend-item");
+            item.append("div")
+                .attr("class", "legend-color")
+                .style("background-color", colorRange[i]);
+            item.append("span").text(label);
+        });
+
+        // Load map shapes AND live population data simultaneously
+        Promise.all([
+            d3.json("https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson"),
+            fetch("https://restcountries.com/v3.1/all?fields=name,cca3,population").then(res => res.json()).catch(() => [])
+        ]).then(([geoData, apiCountries]) => {
+            
+            // Create a dictionary mapping country names and ISO codes to their real populations
+            const popData = new Map();
+            apiCountries.forEach(country => {
+                if(country.name && country.name.common) popData.set(country.name.common, country.population);
+                if(country.cca3) popData.set(country.cca3, country.population);
+            });
+
+            g.selectAll("path")
+                .data(geoData.features)
+                .join("path")
+                .attr("d", path)
+                .attr("class", "country")
+                .attr("fill", d => {
+                    const mapName = d.properties.name;
+                    const apiSearchName = nameCorrections[mapName] || mapName; 
+                    
+                    // Fetch population from the live API dictionary, fallback to local file if missing
+                    let pop = popData.get(apiSearchName) || popData.get(mapName) || popData.get(d.id);
+                    if (pop === undefined) {
+                        pop = d.properties.pop_est || 0; 
+                    }
+                    
+                    // Save for tooltip usage
+                    d.properties.actual_pop = pop;
+                    
+                    return colorScale(pop); // Apply correct color based on real population
+                }) 
+                
+                .on("mouseover", (event, d) => {
+                    const popEst = d.properties.actual_pop;
+                    const popFormatted = popEst ? (popEst / 1000000).toFixed(1) + " M" : "No Data";
+                    
+                    tooltip.style("opacity", 1)
+                           .html(`<strong style="color:#e53e3e; font-size:1.1em;">${d.properties.name}</strong><br>Est. Population: <strong>${popFormatted}</strong>`);
+                })
+                .on("mousemove", event => {
+                    tooltip.style("left", (event.pageX + 15) + "px")
+                           .style("top", (event.pageY - 15) + "px");
+                })
+                .on("mouseout", () => tooltip.style("opacity", 0))
+
+                .on("click", (event, d) => {
+                    const mapName = d.properties.name;
+                    const apiSearchName = nameCorrections[mapName] || mapName; 
+                    
+                    infoBox.innerHTML = `<em>Scanning data systems for <strong style="color:#2b6cb0;">${mapName}</strong>...</em>`;
+
+                    fetch(`https://restcountries.com/v3.1/name/${encodeURIComponent(apiSearchName)}?fullText=true`)
+                        .then(res => !res.ok ? fetch(`https://restcountries.com/v3.1/name/${encodeURIComponent(apiSearchName)}`) : res)
+                        .then(res => {
+                            if (!res.ok) throw new Error("Not found");
+                            return res.json();
+                        })
+                        .then(apiData => {
+                            const country = apiData[0];
+                            const capital = country.capital ? country.capital[0] : "None";
+                            const pop = country.population.toLocaleString();
+                            const subregion = country.subregion || "Unknown Region";
+                            const flagUrl = country.flags.svg || country.flags.png;
+                            const currency = country.currencies ? Object.values(country.currencies)[0].name : "N/A";
+
+                            infoBox.innerHTML = `
+                                <img src="${flagUrl}" class="flag-img" alt="${mapName} Flag">
+                                <div class="info-text">
+                                    <span class="info-title"><strong>${mapName}</strong></span><br>
+                                    <span class="highlight">Capital:</span> ${capital} <span class="divider">|</span> 
+                                    <span class="highlight">Subregion:</span> ${subregion}<br>
+                                    <span class="highlight">Population:</span> ${pop} <span class="divider">|</span> 
+                                    <span class="highlight">Currency:</span> ${currency}
+                                </div>
+                            `;
+                        })
+                        .catch(() => {
+                            const localPop = d.properties.actual_pop ? (d.properties.actual_pop).toLocaleString() : "Unknown";
+                            infoBox.innerHTML = `
+                                <div class="info-text" style="text-align: center;">
+                                    <span class="info-title"><strong>${mapName}</strong></span><br>
+                                    Intelligence Link Offline. Local Map Aggregates State &rarr; <span class="highlight">Est. Population:</span> ${localPop}
+                                </div>
+                            `;
+                        });
+                });
+        });
+    </script>
+</body>
+</html>
